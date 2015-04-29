@@ -317,6 +317,7 @@ struct dvb_frontend_event {
 
 #define DTV_DVBT2_PLP_ID	43
 #define DTV_DVBS2_MIS_ID	43
+#define DTV_STREAM_ID		43
 
 #define DTV_MAX_COMMAND				DTV_DVBT2_PLP_ID
 

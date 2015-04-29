@@ -583,6 +583,7 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 static int msp_suspend(struct i2c_client *client, pm_message_t state)
 {
 	v4l_dbg(1, msp_debug, client, "suspend\n");
@@ -596,6 +597,7 @@ static int msp_resume(struct i2c_client *client)
 	msp_wake_thread(client);
 	return 0;
 }
+#endif
 
 /* ----------------------------------------------------------------------- */
 
@@ -856,8 +858,10 @@ static struct i2c_driver msp_driver = {
 	},
 	.probe		= msp_probe,
 	.remove		= msp_remove,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 	.suspend	= msp_suspend,
 	.resume		= msp_resume,
+#endif
 	.id_table	= msp_id,
 };
 

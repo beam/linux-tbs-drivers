@@ -713,7 +713,7 @@ again:
 		if (modulation == -1)
 			modulation = QPSK;
 
-		if(mis<0 || mis>255) mis=-1;
+		if(mis<0) mis=-1;
 
 		if (delsys == -1)
 			delsys = SYS_DVBS;

@@ -1237,6 +1237,7 @@ static int tuner_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 static int tuner_suspend(struct i2c_client *c, pm_message_t state)
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
@@ -1262,6 +1263,7 @@ static int tuner_resume(struct i2c_client *c)
 
 	return 0;
 }
+#endif
 
 static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
@@ -1320,8 +1322,10 @@ static struct i2c_driver tuner_driver = {
 	.probe		= tuner_probe,
 	.remove		= tuner_remove,
 	.command	= tuner_command,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 	.suspend	= tuner_suspend,
 	.resume		= tuner_resume,
+#endif
 	.id_table	= tuner_id,
 };
 
