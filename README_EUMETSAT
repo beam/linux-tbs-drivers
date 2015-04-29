@@ -1,0 +1,20 @@
+EUMETSAT DVB-S2 service reception
+
+In order to receive EUMETSAT DVB-S2 service you need supported TBS card model.
+At the moment that means TBS 5925, TBS 6925 or the latest TBS 6983.
+
+If you want to use TBS 5925 or TBS 6925 you need to de-activate "issy" module
+parameter of stv090x driver. one of the easiest way to do that is to create
+file in /etc/modprobe.d directory, named for example "stv090x.conf" with 
+the following content:
+
+# cat /etc/modprobe.d/stv090x.conf
+options stv090x issy=0
+
+and on the next driver load the new setting will take affect.
+
+also, you need to specify the ISI to lock the signal, which is "-m" switch
+on 'szap-s2' command line.
+
+please, check other READMEs like for example README_TBS5925 for installation
+steps or other general information.

@@ -1,0 +1,9 @@
+config TBS_PCIE_DVB
+	tristate "TBS PCIe DVB cards"
+	depends on PCI && I2C && DVB_CORE
+	select DVB_TBS6904FE if !DVB_FE_CUSTOMISE
+
+	help
+	  Support for TBS PCIe DVB cards
+
+	  Say Y if you own such a device and want to use it.
