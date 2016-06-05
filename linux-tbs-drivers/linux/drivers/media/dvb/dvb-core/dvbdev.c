@@ -471,6 +471,7 @@ static int __init init_dvbdev(void)
 {
 	int retval;
 	dev_t dev = MKDEV(DVB_MAJOR, 0);
+	printk("TBS version 160405\n");
 
 	if ((retval = register_chrdev_region(dev, MAX_DVB_MINORS, "DVB")) != 0) {
 		printk(KERN_ERR "dvb-core: unable to get major %d\n", DVB_MAJOR);

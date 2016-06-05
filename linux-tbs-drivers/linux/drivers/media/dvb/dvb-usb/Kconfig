@@ -298,6 +298,14 @@ config DVB_USB_TBS5220
 	help
 	  Say Y here to support the TurboSight TBS5220 DVB-T/T2/C USB2.0 receivers
 
+config DVB_USB_TBS5520
+	tristate "TurboSight TBS5520 DVB-S/S2/T/T2/C/ISDBT USB2.0 support"
+	depends on DVB_USB
+	select DVB_TBS5520FE if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the TurboSight TBS5220 DVB-T/T2/C USB2.0 receivers
+
 config DVB_USB_TBS5680
 	tristate "TurboSight TBS5680 DVB-C CI USB2.0 support"
 	depends on DVB_USB

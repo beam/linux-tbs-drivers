@@ -22,11 +22,11 @@ struct tbs6908fe_config {
 	(defined(CONFIG_DVB_TBS6908FE_MODULE) && defined(MODULE))
 extern struct dvb_frontend *tbs6908fe_attach(
 	const struct tbs6908fe_config *config,
-	struct i2c_adapter *i2c, int demod);
+	struct i2c_adapter *i2c, int demod, int mode);
 #else
 static inline struct dvb_frontend *tbs6908fe_attach(
 	const struct tbs6908fe_config *config,
-	struct i2c_adapter *i2c, int demod)
+	struct i2c_adapter *i2c, int demod, int mode)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

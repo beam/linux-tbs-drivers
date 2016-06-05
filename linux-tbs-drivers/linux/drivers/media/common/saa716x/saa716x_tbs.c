@@ -1882,6 +1882,69 @@ static int load_config_tbs6221(struct saa716x_dev *saa716x)
 	return ret;
 }
 
+static irqreturn_t saa716x_tbs7220_pci_irq(int irq, void *dev_id)
+{
+	struct saa716x_dev *saa716x	= (struct saa716x_dev *) dev_id;
+
+	u32 stat_h, stat_l, mask_h, mask_l;
+	u32 fgpiStatus;
+	u32 activeBuffer;
+
+	if (unlikely(saa716x == NULL)) {
+		printk("%s: saa716x=NULL", __func__);
+		return IRQ_NONE;
+	}
+
+	stat_l = SAA716x_EPRD(MSI, MSI_INT_STATUS_L);
+	stat_h = SAA716x_EPRD(MSI, MSI_INT_STATUS_H);
+	mask_l = SAA716x_EPRD(MSI, MSI_INT_ENA_L);
+	mask_h = SAA716x_EPRD(MSI, MSI_INT_ENA_H);
+
+	dprintk(SAA716x_DEBUG, 1, "MSI STAT L=<%02x> H=<%02x>, CTL L=<%02x> H=<%02x>",
+		stat_l, stat_h, mask_l, mask_h);
+
+	if (!((stat_l & mask_l) || (stat_h & mask_h)))
+		return IRQ_NONE;
+
+	if (stat_l)
+		SAA716x_EPWR(MSI, MSI_INT_STATUS_CLR_L, stat_l);
+
+	if (stat_h)
+		SAA716x_EPWR(MSI, MSI_INT_STATUS_CLR_H, stat_h);
+	
+	if (enable_ir) {
+		if (stat_h & MSI_INT_EXTINT_4)
+			saa716x_input_irq_handler(saa716x);
+	}
+
+	if (stat_l) {
+		if (stat_l & MSI_INT_TAGACK_FGPI_1) {
+
+			fgpiStatus = SAA716x_EPRD(FGPI1, INT_STATUS);
+			activeBuffer = (SAA716x_EPRD(BAM, BAM_FGPI1_DMA_BUF_MODE) >> 3) & 0x7;
+			dprintk(SAA716x_DEBUG, 1, "fgpiStatus = %04X, buffer = %d",
+				fgpiStatus, activeBuffer);
+			if (activeBuffer > 0)
+				activeBuffer -= 1;
+			else
+				activeBuffer = 7;
+			if (saa716x->fgpi[1].dma_buf[activeBuffer].mem_virt) {
+				u8 * data = (u8 *)saa716x->fgpi[1].dma_buf[activeBuffer].mem_virt;
+				dprintk(SAA716x_DEBUG, 1, "%02X%02X%02X%02X",
+					data[0], data[1], data[2], data[3]);
+				dvb_dmx_swfilter_packets(&saa716x->saa716x_adap[0].demux, data, 348);
+			}
+			if (fgpiStatus) {
+				SAA716x_EPWR(FGPI1, INT_CLR_STATUS, fgpiStatus);
+			}
+		}
+	}
+
+	saa716x_msi_event(saa716x, stat_l, stat_h);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t saa716x_tbs6281_pci_irq(int irq, void *dev_id)
 {
 	struct saa716x_dev *saa716x	= (struct saa716x_dev *) dev_id;
@@ -4436,6 +4499,24 @@ static struct saa716x_config saa716x_tbs6221_config = {
 	}
 };
 
+static struct saa716x_config saa716x_tbs7220_config = {
+	.model_name		= SAA716x_MODEL_TURBOSIGHT_TBS6221,
+	.dev_type		= SAA716x_DEV_TURBOSIGHT_TBS6221,
+	.boot_mode		= SAA716x_EXT_BOOT,
+	.load_config		= &load_config_tbs6221,
+	.adapters		= 1,
+	.frontend_attach	= saa716x_tbs6221_frontend_attach,
+	.irq_handler		= saa716x_tbs7220_pci_irq,
+	.i2c_rate[0]		= SAA716x_I2C_RATE_400,
+	.i2c_rate[1]            = SAA716x_I2C_RATE_400,
+	.adap_config		= {
+		{
+			/* adapter 0 */
+			.ts_port = 1
+		},
+	}
+};
+
 #define SAA716x_MODEL_TURBOSIGHT_TBS6281 "TurboSight TBS 6281"
 #define SAA716x_DEV_TURBOSIGHT_TBS6281   "DVB-T/T2/C"
 
@@ -4613,7 +4694,7 @@ static struct pci_device_id saa716x_tbs_pci_table[] = {
 	MAKE_ENTRY(TURBOSIGHT_TBS6290_SUBVENDOR, TURBOSIGHT_TBS6290_SUBDEVICE, SAA7160, &saa716x_tbs6290_config),
 	MAKE_ENTRY(TURBOSIGHT_TBS6983_SUBVENDOR, TURBOSIGHT_TBS6983_SUBDEVICE, SAA7160, &saa716x_tbs6983_config),
 	MAKE_ENTRY(TURBOSIGHT_TBS6983_SUBVENDOR, TURBOSIGHT_TBS6983_SUBDEVICE+1, SAA7160, &saa716x_tbs6983_config),
-	MAKE_ENTRY(0x7220, 0x0001, SAA7160, &saa716x_tbs6221_config),
+	MAKE_ENTRY(0x7220, 0x0001, SAA7160, &saa716x_tbs7220_config),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, saa716x_tbs_pci_table);

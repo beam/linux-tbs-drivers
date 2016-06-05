@@ -47,11 +47,23 @@
 #define TBS_DMA_MASK_1		0x20
 #define TBS_DMA_MASK_0		0x24
 
+#define TBS_DMA2_MASK(i)	(0x28 + (7 - (i)) * 0x04)
+#define TBS_DMA2_MASK_3		0x28
+#define TBS_DMA2_MASK_2		0x2C
+#define TBS_DMA2_MASK_1		0x30
+#define TBS_DMA2_MASK_0		0x34
+
 #define TBS_DMA_BASE(i)		(0x8000 + (3 - (i)) * 0x1000)
 #define TBS_DMA_BASE_3		0x8000
 #define TBS_DMA_BASE_2		0x9000
 #define TBS_DMA_BASE_1		0xa000
 #define TBS_DMA_BASE_0		0xb000
+
+#define TBS_DMA2_BASE(i)	(0x8800 + (7 - (i)) * 0x1000)
+#define TBS_DMA2_BASE_3		0x8800
+#define TBS_DMA2_BASE_2		0x9800
+#define TBS_DMA2_BASE_1		0xa800
+#define TBS_DMA2_BASE_0		0xb800
 
 #define TBS_DMA_START		0x00
 #define TBS_DMA_STATUS		0x00
@@ -61,7 +73,7 @@
 #define TBS_DMA_CELL_SIZE	0x10
 
 #define TBS_PCIE_PAGE_SIZE	4194304
-#define TBS_PCIE_DMA_TOTAL	770048
-#define TBS_PCIE_CELL_SIZE	96256
+#define TBS_PCIE_DMA_TOTAL	385024
+#define TBS_PCIE_CELL_SIZE	48128
 
 #endif

@@ -247,6 +247,10 @@ static inline int strict_strtoul(const char *cp, unsigned int base, valtype *res
 #define IRQF_DISABLED		SA_INTERRUPT
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#define IRQF_DISABLED		0x00
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #define PCIAGP_FAIL 0

@@ -1,6 +1,9 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+#include <linux/vmalloc.h>
+#endif
 #include <asm/page.h>
 #include <asm/pgtable.h>
 

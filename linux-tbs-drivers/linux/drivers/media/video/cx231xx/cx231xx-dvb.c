@@ -38,6 +38,7 @@
 #include "tbs5990fe.h"
 #include "tbs5926fe.h"
 #include "tbscxci.h"
+#include "tbsfe.h"
 
 MODULE_DESCRIPTION("driver for cx231xx based DVB cards");
 MODULE_AUTHOR("Srinivasa Deevi <srinivasa.deevi@conexant.com>");
@@ -360,6 +361,27 @@ static inline int dvb_bulk_copy(struct cx231xx *dev, struct urb *urb)
 	return 0;
 }
 
+static inline int dvb_bulk_copy_ts2(struct cx231xx *dev, struct urb *urb)
+{
+	if (!dev)
+		return 0;
+
+	if (dev->state & DEV_DISCONNECTED)
+		return 0;
+
+	if (urb->status < 0) {
+		print_err_status(dev, -1, urb->status);
+		if (urb->status == -ENOENT)
+			return 0;
+	}
+
+	/* Feed the transport payload into the kernel demux */
+	dvb_dmx_swfilter(&dev->dvb[1]->demux,
+		urb->transfer_buffer, urb->actual_length);
+
+	return 0;
+}
+
 static int start_streaming(struct cx231xx_dvb *dvb)
 {
 	int rc;
@@ -391,7 +413,7 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 				dvb_isoc_copy);
 		
 	} else {
-		cx231xx_info("DVB transfer mode is BULK.\n");
+		/* cx231xx_info("DVB transfer mode is BULK.\n"); */
 		if (dvb->count == 0)
 			cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 		if (dvb->count == 1)
@@ -400,10 +422,15 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 		if (rc < 0)
 			return rc;
 		dev->mode_tv = 1;
+		if (dvb->count == 1)
+		return cx231xx_init_bulk_ts2(dev, CX231XX_DVB_MAX_PACKETS,
+				CX231XX_DVB_NUM_BUFS,
+				dev->ts2_mode.max_pkt_size,
+				dvb_bulk_copy_ts2);
+		else
 		return cx231xx_init_bulk(dev, CX231XX_DVB_MAX_PACKETS,
 				CX231XX_DVB_NUM_BUFS,
-				dvb->count ? dev->ts2_mode.max_pkt_size 
-						: dev->ts1_mode.max_pkt_size,
+				dev->ts1_mode.max_pkt_size,
 				dvb_bulk_copy);
 	}
 
@@ -419,7 +446,10 @@ static int stop_streaming(struct cx231xx_dvb *dvb)
 		if (dvb->count == 1)
 			cx231xx_uninit_isoc_ts2(dev);
 	else
-		cx231xx_uninit_bulk(dev);
+		if (dvb->count == 0)
+			cx231xx_uninit_bulk(dev);
+		if (dvb->count == 1)
+			cx231xx_uninit_bulk_ts2(dev);
 
 	cx231xx_set_mode(dev, CX231XX_SUSPEND);
 
@@ -592,10 +622,9 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 		goto fail_adapter;
 	}
 
-	/* Ensure all frontends negotiate bus access */
-	dvb->frontend->ops.ts_bus_ctrl = cx231xx_dvb_bus_ctrl;
-
 	dvb->adapter.priv = dev;
+
+#if 0
 
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
@@ -605,6 +634,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 		       dev->name, result);
 		goto fail_frontend;
 	}
+#endif
 
 	/* register demux stuff */
 	dvb->demux.dmx.capabilities =
@@ -661,6 +691,17 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
+
+#if 0
+        /* register frontend */
+        result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
+        if (result < 0) {
+                printk(KERN_WARNING
+                       "%s: dvb_register_frontend failed (errno = %d)\n",
+                       dev->name, result);
+                goto fail_frontend;
+        }
+#endif
 	return 0;
 
 fail_fe_conn:
@@ -673,9 +714,11 @@ fail_dmxdev:
 	dvb_dmx_release(&dvb->demux);
 fail_dmx:
 	dvb_unregister_frontend(dvb->frontend);
+#if 0
 fail_frontend:
 	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
+#endif
 fail_adapter:
 	return result;
 }
@@ -692,10 +735,41 @@ static void unregister_dvb(struct cx231xx_dvb *dvb)
 	dvb_unregister_adapter(&dvb->adapter);
 }
 
+static int tbs_cx_mac(struct i2c_adapter *i2c_adap, u8 count, u8 *mac)
+{
+	u8 b[64], e[256];
+	int ret, i;
+
+	struct i2c_msg msg[] = {
+		{ .addr = 0x50, .flags = 0,
+			.buf = b, .len = 1 },
+		{ .addr = 0x50, .flags = I2C_M_RD,
+			.buf = b, .len = 64 }
+	};
+
+	for (i = 0; i < 4; i++) {
+		b[0] = 0x40 * i;
+
+		ret = i2c_transfer(i2c_adap, msg, 2);
+
+		if (ret != 2) {
+			printk("TBS CX read MAC failed\n");
+			return -1;
+		}
+
+		memcpy(&e[0x40 * i], b , 64);
+	}
+	
+	memcpy(mac, &e[0x58 + 6 + 0x10*count], 6);
+	
+	return 0;
+};
+
 static int dvb_init(struct cx231xx *dev)
 {
 	int i, result = 0;
 	struct cx231xx_dvb *dvb;
+	u8 mac[6] = {0, 0, 0, 0, 0, 0};
 
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
@@ -717,6 +791,10 @@ static int dvb_init(struct cx231xx *dev)
 	dev->cx231xx_reset_analog_tuner = cx231xx_reset_analog_tuner;
 
 	mutex_lock(&dev->lock);
+
+	/* register everything */
+	result = register_dvb(dev->dvb[i], THIS_MODULE, dev, &dev->udev->dev);
+
 	cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 	cx231xx_demod_reset(dev);
 	/* init frontend */
@@ -910,6 +988,19 @@ static int dvb_init(struct cx231xx *dev)
 			result = -EINVAL;
 			goto out_free;
 		}
+
+		dvb_attach(tbsfe_attach, dev->dvb[i]->frontend);
+
+		if (i == 0) { 
+			tbs_cx_mac(&dev->i2c_bus[1].i2c_adap, 0, mac);
+		}
+
+		if (i == 1) {
+			memcpy(dev->dvb[0]->adapter.proposed_mac, mac, 6);
+			printk(KERN_INFO "TurboSight TBS5990 MAC Addresse bas: %pM\n", mac);
+			mac[5] +=1;
+			memcpy(dev->dvb[1]->adapter.proposed_mac, mac, 6);
+		}
 		
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
@@ -945,8 +1036,11 @@ static int dvb_init(struct cx231xx *dev)
 		goto out_free;
 	}
 
-	/* register everything */
-	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
+	/* Ensure all frontends negotiate bus access */
+	dev->dvb[i]->frontend->ops.ts_bus_ctrl = cx231xx_dvb_bus_ctrl;
+	result = dvb_register_frontend(&dev->dvb[i]->adapter, dev->dvb[i]->frontend);
+//	if (result < 0)
+//		goto fail_frontend;
 
 	/* post init frontend */
 	switch (dev->model) {
@@ -963,6 +1057,9 @@ static int dvb_init(struct cx231xx *dev)
 
 	printk(KERN_INFO "Successfully loaded cx231xx-dvb\n");
 
+//fail_frontend:
+//	dvb_frontend_detach(dev->dvb[i]->frontend);
+//	dvb_unregister_adapter(&dev->dvb[i]->adapter);
 ret:
 	cx231xx_set_mode(dev, CX231XX_SUSPEND);
 	return result;

@@ -36,7 +36,7 @@ struct tbs_card_config {
 
 	irqreturn_t (*irq_handler)(int irq, void *dev_id);
 
-	struct tbs_adap_config adap_config[4];
+	struct tbs_adap_config adap_config[8];
 };
 
 struct tbs_i2c {
@@ -72,6 +72,8 @@ struct tbs_adapter {
 	int			feeds;
 	int			count;
 	int			tsin;
+
+	void			*adap_priv;
 };
 
 struct tbs_pcie_dev {
@@ -81,7 +83,7 @@ struct tbs_pcie_dev {
 	dma_addr_t 		mem_addr_phys;
 	__le32 *		mem_addr_virt;
 
-	struct tbs_adapter	tbs_pcie_adap[4];
+	struct tbs_adapter	tbs_pcie_adap[8];
 	struct tbs_i2c		i2c_bus[4];
 
 	struct tbs_card_config	*card_config;

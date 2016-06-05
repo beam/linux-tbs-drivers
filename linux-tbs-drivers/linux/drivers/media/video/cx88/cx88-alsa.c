@@ -846,7 +846,12 @@ static int  snd_cx88_create(struct snd_card *card,
 		return err;
 	}
 
-	if (!pci_dma_supported(pci,DMA_BIT_MASK(32))) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+	err = pci_set_dma_mask(pci,DMA_BIT_MASK(32));
+#else
+	err = !pci_dma_supported(pci, DMA_BIT_MASK(32));
+#endif
+	if (err) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
 		err = -EIO;
 		cx88_core_put(core, pci);
